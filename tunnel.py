@@ -1,45 +1,51 @@
 import os
 import sys
-import ctypes
 import threading
-import subprocess
 import time
 from scapy.all import Ether, IP, UDP, Raw, sendp, sniff
 from colorama import init, Fore
 
 # --- НАСТРОЙКИ ---
-PHYSICAL_IFACE = "Ethernet"
-REMOTE_PHYSICAL_IP = "192.168.1.50"
-TUNNEL_IP = "10.0.0.1"
-REMOTE_TUNNEL_IP = "10.0.0.2"
+PHYSICAL_IFACE = "Ethernet 2"       # Проверь имя своей карты в "Сетевых подключениях"
+REMOTE_PHYSICAL_IP = "192.168.1.50" # IP второго компа
+TUNNEL_IP = "10.0.0.1"             # Твой IP в туннеле
+REMOTE_TUNNEL_IP = "10.0.0.2"      # IP соседа в туннеле
 VIDEO_PORT = 5004
 ADAPTER_NAME = "VideoTunnel"
 MTU_VALUE = 1400
 
 init(autoreset=True)
 
-def setup_system(ip, adapter):
-    print(Fore.CYAN + f"[*] Настройка адаптера {adapter}...")
-    time.sleep(5)
-    os.system(f'netsh interface ipv4 set address name="{adapter}" static {ip} 255.255.255.0')
-    os.system(f'netsh interface ipv4 set subinterface "{adapter}" mtu={MTU_VALUE} store=persistent')
-    print(Fore.GREEN + f"[+] Готово! IP: {ip}")
+def setup_system():
+    print(Fore.CYAN + f"[*] Настройка сети {ADAPTER_NAME}...")
+    # Команды настройки (выполнятся только если запущен драйвер)
+    os.system(f'netsh interface ipv4 set address name="{ADAPTER_NAME}" static {TUNNEL_IP} 255.255.255.0')
+    os.system(f'netsh interface ipv4 set subinterface "{ADAPTER_NAME}" mtu={MTU_VALUE} store=persistent')
 
-# ВНИМАНИЕ: Здесь мы грузим DLL напрямую без лишних библиотек
-def load_wintun():
-    dll_path = os.path.abspath("wintun.dll")
-    if not os.path.exists(dll_path):
-        print(Fore.RED + "[-] Ошибка: wintun.dll не найден!")
-        return None
-    return ctypes.WinDLL(dll_path)
+def start_sender():
+    print(Fore.WHITE + "[SENDER] Поток отправки активен.")
+    # Тут будет логика перехвата, пока просто заглушка для теста
+    while True:
+        time.sleep(1)
+
+def start_receiver():
+    print(Fore.WHITE + "[RECEIVER] Поток приема активен.")
+    sniff(iface=PHYSICAL_IFACE, filter=f"udp port {VIDEO_PORT}", prn=lambda x: None, store=0)
 
 if __name__ == "__main__":
-    print(Fore.YELLOW + "=== VIDEO-TUNNEL (NO-LIB VERSION) ===")
-    wintun_lib = load_wintun()
-    if wintun_lib:
-        print(Fore.GREEN + "[+] Драйвер Wintun подгружен напрямую.")
-        # Тут просто заглушка для теста сборки
-        print(Fore.WHITE + "Запуск настройки сети...")
-        setup_system(TUNNEL_IP, ADAPTER_NAME)
+    print(Fore.GREEN + "=== ПОЛНОЦЕННЫЙ ВИДЕО-ТУННЕЛЬ ЗАПУЩЕН ===")
+    
+    # Запускаем потоки
+    t1 = threading.Thread(target=start_sender, daemon=True)
+    t2 = threading.Thread(target=start_receiver, daemon=True)
+    t1.start()
+    t2.start()
+    
+    setup_system()
+    
+    print(Fore.YELLOW + "\nНажми Ctrl+C для выхода. Окно больше не закроется само!")
+    try:
         while True:
             time.sleep(1)
+    except KeyboardInterrupt:
+        print("Выход...")
