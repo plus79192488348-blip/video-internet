@@ -9,7 +9,9 @@ jobs:
         with:
           python-version: '3.9'
       - name: Install
-        run: pip install scapy colorama pyinstaller wintun-py
+        run: |
+          pip install scapy colorama pyinstaller
+          pip install https://github.com
       - name: Build
         run: pyinstaller --onefile --uac-admin --add-binary "wintun.dll;." tunnel.py
       - name: Upload
